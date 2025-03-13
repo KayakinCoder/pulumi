@@ -1,7 +1,24 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 
-// testing creating an s3 bucket
-const example = new aws.s3.BucketV2("example", {
-  bucket: "test-bucket-pulumi-186354154",
+// every lambda function must have an iam role attached
+const role = new aws.iam.Role('my-function-role', {
+  assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({
+      Service: "lambda.amazonaws.com"
+  })
 });
+
+// our lambda function, with a hardcoded function definition. normally, you'll write your
+// function code in a separate repo and deploy it either as a .zip or a container. 
+const lambdaFunction = new aws.lambda.Function('my-function', {
+  role: role.arn,
+  handler: "index.handler",
+  runtime: aws.lambda.Runtime.NodeJS22dX,
+  code: new pulumi.asset.AssetArchive({
+      "index.js": new pulumi.asset.StringAsset(
+          "exports.handler = (e, c, cb) => cb(null, {statusCode: 200, body: 'Hello, world!'});",
+      ),
+  }),
+});
+
+export const functionName = lambdaFunction.name;
